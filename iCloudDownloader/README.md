@@ -4,12 +4,39 @@
 
 This is a **sanitized public version** of a private sync setup. Replace the placeholders with your own email and target directories before use.
 
-## 📦 What It Does
-- Downloads:
-  - 📁 Main iCloud Photos library to a local folder
-  - 📁 Shared iCloud albums to a separate folder
+---
 
-## 🛠 Folder Structure
+## 🧑‍🔧 Quick Setup
+
+1. Download or clone this repo
+2. Place `icloudpd.exe` in the same folder
+3. Edit the `.bat` files with your Apple ID and desired download paths
+4. (Optional) Run the PowerShell scripts to register scheduled weekly sync tasks
+
+---
+
+## 📥 Requirements
+
+- [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader)
+  - Use the precompiled Windows `.exe` version if you're not using Python
+  - Rename the file to `icloudpd.exe` and place it alongside the `.bat` files
+- Windows 10 or 11
+- PowerShell 5.1+
+- Optional: Admin rights to create scheduled tasks
+
+---
+
+## 📦 What It Does
+
+Downloads and syncs:
+
+- 📁 Your main iCloud Photos library to a local folder
+- 📁 Shared iCloud albums to a separate folder
+
+---
+
+## 🗂 Folder Structure
+
 ```
 iCloudDownloader/
 ├── Download-iCloudPhotos.bat              # Syncs main library (edit username)
@@ -20,31 +47,32 @@ iCloudDownloader/
 ├── README.md                              # This file
 ```
 
-## 🧑‍💻 Example Commands
+---
+
+## 💻 Example Commands
+
 Edit `Download-iCloudPhotos.bat`:
 ```bat
 icloudpd.exe --username your@email.com --directory D:\YourPhotosFolder\
 ```
 
 Edit `Download-iCloudShared.bat`:
-```bat
+```bat	  
 icloudpd.exe --username your@email.com --library YourSharedLibraryID --directory D:\YourSharedFolder\
 ```
 
 ## 🔁 Scheduled Sync (Optional)
-To automatically sync weekly, register scheduled tasks using the PowerShell scripts:
 
+Register weekly scheduled tasks using PowerShell:
 ```powershell
 .\Create-Download-iCloudPhotosTask.ps1
 .\Create-Download-iCloudSharedTask.ps1
 ```
 
-These scripts create weekly tasks that run with the current user's privileges. Be sure to update any file paths or usernames before running.
+These create tasks under the current user's context. Be sure to update any file paths or email addresses before use.
 
-## 🛡 Notes
-- You must have [icloudpd](https://github.com/icloud-photos-downloader/icloud_photos_downloader) downloaded and renamed as `icloudpd.exe`
-- Place it alongside the `.bat` files, or update the paths accordingly
-- You may be prompted for 2FA on first run
-
-## 📄 License
-MIT — feel free to adapt and extend.
+## 🐞 Troubleshooting
+- ❗ First run may prompt for 2FA and generate a cookies file — keep this in the same folder
+- 📂 Ensure the destination folders exist before syncing
+- 🔐 Use full/absolute paths in .bat files when running scheduled tasks
+- 🧪 Test .bat files manually to confirm they run before scheduling
