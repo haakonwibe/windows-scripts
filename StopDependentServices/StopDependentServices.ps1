@@ -4,6 +4,9 @@
 .DESCRIPTION
     This script attempts to stop multiple services and applications that could potentially block
     the safe removal of external drives. It includes retry logic, status reporting, and logging.
+    
+    IMPORTANT: Processes are stopped BEFORE services, as many services depend on their
+    parent applications and may fail to stop if the application is still running.
 .PARAMETER Services
     Array of service names to stop. Defaults include game services that may use external drives.
 .PARAMETER ProcessNames
@@ -65,8 +68,8 @@ if (-not $NoLog) {
     $logFile = Join-Path -Path $LogFolder -ChildPath "StopDependentServices_$timestamp.log"
     # Start the log file with a header
     "==== StopDependentServices Log ($timestamp) ====" | Out-File -FilePath $logFile
-    "Services to stop: $($Services -join ', ')" | Out-File -FilePath $logFile -Append
     "Processes to stop: $($ProcessNames -join ', ')" | Out-File -FilePath $logFile -Append
+    "Services to stop: $($Services -join ', ')" | Out-File -FilePath $logFile -Append
     "--------------------------------------------------" | Out-File -FilePath $logFile -Append
 }
 
@@ -115,8 +118,73 @@ function Wait-ForProcessTermination {
     return $true
 }
 
-# PART 1: Stop Services
-Write-Log "`n===== STOPPING SERVICES =====`n"
+# PART 1: Stop Processes FIRST
+Write-Log "`n===== STOPPING APPLICATIONS (FIRST) =====`n"
+
+foreach ($processName in $ProcessNames) {
+    $processResult = [PSCustomObject]@{
+        ProcessName = $processName
+        InitialState = "Unknown"
+        FinalState = "Unknown"
+        Success = $false
+        Message = ""
+    }
+    
+    $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
+    
+    if ($processes) {
+        $processCount = $processes.Count
+        $processResult.InitialState = "Running ($processCount instances)"
+        
+        Write-Log "Attempting to stop process '$processName' ($processCount instances found)..."
+        try {
+            $processes | Stop-Process -Force -ErrorAction Stop
+            
+            # Wait and check if the process has actually stopped
+            $success = Wait-ForProcessTermination -ProcessName $processName -MaxAttempts $MaxAttempts -WaitTimeSeconds $WaitTimeSeconds
+            
+            if ($success) {
+                $processResult.FinalState = "Terminated"
+                $processResult.Success = $true
+                $processResult.Message = "Successfully terminated all instances."
+            } else {
+                $processResult.FinalState = "Still Running"
+                $processResult.Message = "Failed to terminate after $MaxAttempts attempts."
+            }
+        }
+        catch {
+            $errorMsg = $_.Exception.Message
+            Write-Log "Error stopping process '$processName': $errorMsg"
+            
+            # Check if it's still running despite the error
+            $stillRunning = Get-Process -Name $processName -ErrorAction SilentlyContinue
+            if ($stillRunning) {
+                $processResult.FinalState = "Still Running"
+                $processResult.Message = "Error: $errorMsg"
+            } else {
+                $processResult.FinalState = "Terminated"
+                $processResult.Success = $true
+                $processResult.Message = "Terminated despite error: $errorMsg"
+            }
+        }
+    } else {
+        Write-Log "Process '$processName' is not running."
+        $processResult.InitialState = "Not Running"
+        $processResult.FinalState = "Not Running"
+        $processResult.Success = $true
+        $processResult.Message = "Process was not running."
+    }
+    
+    $processResults += $processResult
+}
+
+# Add a slight delay before attempting to stop services
+# This gives any process shutdown operations time to complete
+Write-Log "`nWaiting 2 seconds for processes to fully terminate before stopping services..."
+Start-Sleep -Seconds 2
+
+# PART 2: Stop Services AFTER processes
+Write-Log "`n===== STOPPING SERVICES (AFTER APPLICATIONS) =====`n"
 
 foreach ($serviceName in $Services) {
     $serviceResult = [PSCustomObject]@{
@@ -183,78 +251,18 @@ foreach ($serviceName in $Services) {
     $serviceResults += $serviceResult
 }
 
-# PART 2: Stop Processes
-Write-Log "`n===== STOPPING APPLICATIONS =====`n"
-
-foreach ($processName in $ProcessNames) {
-    $processResult = [PSCustomObject]@{
-        ProcessName = $processName
-        InitialState = "Unknown"
-        FinalState = "Unknown"
-        Success = $false
-        Message = ""
-    }
-    
-    $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
-    
-    if ($processes) {
-        $processCount = $processes.Count
-        $processResult.InitialState = "Running ($processCount instances)"
-        
-        Write-Log "Attempting to stop process '$processName' ($processCount instances found)..."
-        try {
-            $processes | Stop-Process -Force -ErrorAction Stop
-            
-            # Wait and check if the process has actually stopped
-            $success = Wait-ForProcessTermination -ProcessName $processName -MaxAttempts $MaxAttempts -WaitTimeSeconds $WaitTimeSeconds
-            
-            if ($success) {
-                $processResult.FinalState = "Terminated"
-                $processResult.Success = $true
-                $processResult.Message = "Successfully terminated all instances."
-            } else {
-                $processResult.FinalState = "Still Running"
-                $processResult.Message = "Failed to terminate after $MaxAttempts attempts."
-            }
-        }
-        catch {
-            $errorMsg = $_.Exception.Message
-            Write-Log "Error stopping process '$processName': $errorMsg"
-            
-            # Check if it's still running despite the error
-            $stillRunning = Get-Process -Name $processName -ErrorAction SilentlyContinue
-            if ($stillRunning) {
-                $processResult.FinalState = "Still Running"
-                $processResult.Message = "Error: $errorMsg"
-            } else {
-                $processResult.FinalState = "Terminated"
-                $processResult.Success = $true
-                $processResult.Message = "Terminated despite error: $errorMsg"
-            }
-        }
-    } else {
-        Write-Log "Process '$processName' is not running."
-        $processResult.InitialState = "Not Running"
-        $processResult.FinalState = "Not Running"
-        $processResult.Success = $true
-        $processResult.Message = "Process was not running."
-    }
-    
-    $processResults += $processResult
-}
-
 # Generate summary tables
-$serviceTable = $serviceResults | Format-Table -Property ServiceName, InitialStatus, FinalStatus, Success, Message -AutoSize | Out-String
 $processTable = $processResults | Format-Table -Property ProcessName, InitialState, FinalState, Success, Message -AutoSize | Out-String
+$serviceTable = $serviceResults | Format-Table -Property ServiceName, InitialStatus, FinalStatus, Success, Message -AutoSize | Out-String
 
-# Display summary tables
-Write-Log "`nService Stop Summary:"
-Write-Log "--------------------"
-Write-Log $serviceTable
-
+# Display summary tables - processes first, then services (matching execution order)
 Write-Log "`nApplication Stop Summary:"
 Write-Log "-----------------------"
 Write-Log $processTable
+
+Write-Log "`nService Stop Summary:"
+Write-Log "--------------------"
+Write-Log $serviceTable
 
 # Add log file path to output if logging is enabled
 if (-not $NoLog -and $null -ne $logFile) {
@@ -263,8 +271,8 @@ if (-not $NoLog -and $null -ne $logFile) {
 
 # Return combined results object for potential further processing
 return @{
-    Services = $serviceResults
     Processes = $processResults
+    Services = $serviceResults
     AllSuccessful = ($serviceResults | Where-Object { -not $_.Success }).Count -eq 0 -and 
                    ($processResults | Where-Object { -not $_.Success }).Count -eq 0
     LogFile = if (-not $NoLog) { $logFile } else { $null }
