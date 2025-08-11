@@ -1,24 +1,56 @@
-# Windows Scripts and Utilities
+# Windows Scripts and Utilities 🧰
 
-🧰 A collection of scripts and scheduled task utilities for Windows automation, safe device removal, Intune support, and personal admin tools.
+A collection of personal Windows automation scripts and utilities for everyday tasks and system management.
 
-## 🚀 Tools
+## Overview
 
-### [SafeUndock](./SafeUndock/)
-Flushes write buffers, stops conflicting services, and safely ejects external drives with write caching enabled.
+Practical PowerShell scripts and tools for common Windows scenarios like safe device removal, cloud photo syncing, and system maintenance. These scripts are designed for personal use and can be easily adapted for similar needs.
 
-### [StopEAService](./StopEAService/)
-Stops EA Background Service for safe USB device removal.
+## Tools
 
-### [iCloudDownloader](./iCloudDownloader/)
-Sync your iCloud Photos and shared albums to local folders using icloudpd.
+### **[SafeUndock](./SafeUndock/)**
+Safely removes external drives and devices by flushing write buffers, stopping conflicting services, and properly ejecting drives with write caching enabled.
 
-## 📦 Usage
+**Use case**: Prevents data corruption when disconnecting external storage devices
 
-- Each tool lives in its own folder with a README and supporting files
-- Most scripts are designed for Windows 10/11 and tested with scheduled tasks
-- See individual folders for setup and usage instructions
+### **[StopEAService](./StopEAService/)**
+Stops EA Background Service to enable safe USB device removal.
 
-## 🔒 License
+**Use case**: Resolves "device in use" errors when trying to eject USB devices
 
-MIT — free to use, modify, and share.
+### **[iCloudDownloader](./iCloudDownloader/)**
+Synchronizes iCloud Photos and shared albums to local folders using icloudpd.
+
+**Use case**: Local backup of iCloud photos or offline access to photo libraries
+
+## Usage
+
+- Each tool is organized in its own folder with documentation
+- Scripts are designed for Windows 10/11 
+- Many are optimized for use with Windows Task Scheduler
+- See individual tool folders for specific setup instructions
+
+## Requirements
+
+- Windows 10/11
+- PowerShell 5.1 or later
+- Administrative privileges may be required for some scripts
+
+## Installation
+
+1. Download or clone the repository
+2. Navigate to the specific tool folder you need
+3. Follow the README instructions in each folder
+4. Test scripts before scheduling or regular use
+
+## Contributing
+
+These are personal utilities that others might find useful. Feel free to suggest improvements or report issues.
+
+## License
+
+MIT License - Free to use, modify, and share.
+
+---
+
+*Personal Windows automation utilities by [@haakonwibe](https://github.com/haakonwibe)*
